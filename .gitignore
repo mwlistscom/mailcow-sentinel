@@ -13,3 +13,6 @@ llm_prompt.txt
 __pycache__/
 *.pyc
 *.log
+
+# Working notes for AI assistants -- kept local, not published.
+CLAUDE.md
