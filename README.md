@@ -104,47 +104,16 @@ rendered as near-identical truncated lines, one per attacking IP. The most
 important thing in the report was present, and it read as wallpaper. Another ~440
 lines were per-sender and per-domain enumerations nobody reads on a phone.
 
-What arrives instead:
+What arrives instead — the whole thing, 37 lines:
 
-```
-Subject: [mail.example.com] ATTENTION - credential stuffing vs bob@, carol@,
-         alice@ - 168 in / 1 out
+![A mailcow-sentinel daily digest: a verdict of ATTENTION for credential stuffing
+in the Subject, then mail flow totals, per-mailbox send and receive volumes, an
+authentication attack summary naming the targeted mailboxes and the breach-dump
+usernames used against them, new warning classes, and a closing health
+line.](docs/img/digest.svg)
 
-VERDICT     ATTENTION - credential stuffing vs bob@, carol@, alice@;
-            breach-dump usernames in use against this server
-
-FLOW        168 received - 157 delivered - 1 sent externally
-            0 deferred - 0 bounced - 48 rejected (28 greylist, 20 hard)
-            queue 0 - containers 18/18 - cert 57d
-
-ACCOUNTS            recv  sent   vs 7-day
-  alice@example.com   60     0     +12%  ##################
-  dave@example.com    32     0      -4%  ##########
-  carol@example.com   25     0      -8%  ########
-  bob@example.com     16     0      +2%  #####
-  erin@example.com    14     0       0%  ####
-  app@example.com      0     1       --
-
-! AUTH      430 failures (313 smtp, 117 imap) - 219 IPs - 5 banned (1%)
-            targets: bob@example.com 144 - carol@example.com 118 -
-                     alice@example.com 76
-            33 attempts used breach-dump usernames, e.g.
-              httpswww.amazon.comalice@example.com
-            -> these addresses are in a public combolist;
-               check those mailbox passwords are not reused
-
-REJECTS     Service unavailable (32); Greylisted, try again later (8)
-
-NEW         2 warning class(es) not seen in the previous 7 days:
-              9x warning: TLS SNI from unknown[203.0.113.9] is invalid
-
-TRIAGE      (qwen3.6:27b, advisory - classification only)
-              ignore Automated scanner probing non-SMTP ports and invalid SNI.
-
-OK          no unexplained logins - no delivery failures - 18/18 containers up
-
--- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.
-```
+*(Plain-text version: [`examples/sample-digest.txt`](examples/sample-digest.txt).
+Synthetic data throughout — see [Caveats](#caveats).)*
 
 An HTML chart of per-mailbox volume is attached. Outbound is the compromise
 tripwire: on most small servers the baseline is *zero*, so any sustained outbound
