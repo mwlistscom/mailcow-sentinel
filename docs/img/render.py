@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Render examples/sample-digest.txt as a terminal-style SVG for the README.
 
-    python3 docs/img/render.py examples/sample-digest.txt docs/img/digest.svg
+    python3 docs/img/render.py examples/sample-digest.txt docs/img/digest.svg       dark
+    python3 docs/img/render.py examples/sample-digest.txt docs/img/digest-light.svg light
 
 Regenerate whenever the sample changes, so the image cannot drift from the text.
 Stdlib only, like everything else here. Character positions are computed from a
@@ -12,6 +13,7 @@ import re
 import sys
 
 SRC, OUT = sys.argv[1], sys.argv[2]
+THEME = sys.argv[3] if len(sys.argv) > 3 else "dark"
 lines = open(SRC).read().rstrip("\n").split("\n")
 
 FS, CW, LH = 13, 7.81, 19          # font-size, monospace char width, line height
@@ -19,18 +21,41 @@ PAD_X, TITLEBAR, PAD_TOP, PAD_BOT = 22, 34, 14, 18
 W = 830
 H = TITLEBAR + PAD_TOP + len(lines) * LH + PAD_BOT
 
-C = {
-    "bg":    "#0f1319",
-    "chrome": "#171c24",
-    "text":  "#d6deeb",
-    "dim":   "#7a8598",
-    "white": "#ffffff",
-    "bad":   "#ff8b8b",
-    "good":  "#6ede8a",
-    "warn":  "#ffcc5c",
-    "key":   "#8fb6e8",
-    "bar":   "#3d6ea8",
+THEMES = {
+    # Dark reads as a terminal. Light reads as paper -- note it is NOT the dark
+    # palette lightened: the accents are re-picked to hold >= 4.5:1 against a
+    # near-white ground, which amber in particular does not do if you simply
+    # reuse the dark value.
+    "dark": {
+        "bg":     "#0f1319",
+        "chrome": "#171c24",
+        "line":   "#232a35",
+        "dot":    "#2b323d",
+        "text":   "#d6deeb",
+        "dim":    "#7a8598",
+        "strong": "#ffffff",
+        "bad":    "#ff8b8b",
+        "good":   "#6ede8a",
+        "warn":   "#ffcc5c",
+        "key":    "#8fb6e8",
+        "bar":    "#3d6ea8",
+    },
+    "light": {
+        "bg":     "#fdfdfc",
+        "chrome": "#f0f2f6",
+        "line":   "#e2e6ed",
+        "dot":    "#d3d8e2",
+        "text":   "#1f2430",
+        "dim":    "#67717f",
+        "strong": "#0b0e14",
+        "bad":    "#b3261e",
+        "good":   "#0f7b2f",
+        "warn":   "#8a5a00",
+        "key":    "#1f5fa8",
+        "bar":    "#6a93c8",   # 3.12:1 -- decorative, but must stay visible
+    },
 }
+C = THEMES[THEME]
 
 KEYS = ("VERDICT", "FLOW", "ACCOUNTS", "REJECTS", "NEW", "TRIAGE", "BASELINE", "OK")
 
@@ -42,10 +67,10 @@ def spans(line):
     # Subject line
     if line.startswith("Subject:"):
         return [("Subject:", C["dim"], False),
-                (line[8:], C["white"], True)]
+                (line[8:], C["strong"], True)]
     # continuation of the subject
     if line.startswith("         alice@"):
-        return [(line, C["white"], True)]
+        return [(line, C["strong"], True)]
     # alert rows
     if line.startswith("! "):
         head = line[:11]
@@ -95,7 +120,7 @@ for line in lines:
     y += LH
 
 dots = "".join(
-    f'<circle cx="{22 + i * 17}" cy="17" r="5.5" fill="#2b323d"/>' for i in range(3))
+    f'<circle cx="{22 + i * 17}" cy="17" r="5.5" fill="{C['dot']}"/>' for i in range(3))
 
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H:.0f}"
      viewBox="0 0 {W} {H:.0f}" role="img"
@@ -105,7 +130,7 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H:.0f}"
   <rect width="{W}" height="{H:.0f}" rx="10" fill="{C['bg']}"/>
   <path d="M0 10a10 10 0 0 1 10-10h{W - 20}a10 10 0 0 1 10 10v{TITLEBAR - 10}H0z"
         fill="{C['chrome']}"/>
-  <line x1="0" y1="{TITLEBAR}" x2="{W}" y2="{TITLEBAR}" stroke="#232a35"/>
+  <line x1="0" y1="{TITLEBAR}" x2="{W}" y2="{TITLEBAR}" stroke="{C['line']}"/>
   {dots}
   <text x="76" y="22" fill="{C['dim']}" font-size="11.5"
         font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -117,4 +142,4 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H:.0f}"
 </svg>
 '''
 open(OUT, "w").write(svg)
-print(f"{OUT}: {W}x{H:.0f}, {len(lines)} lines, {len(svg)} bytes")
+print(f"{OUT}: {THEME}, {W}x{H:.0f}, {len(lines)} lines, {len(svg)} bytes")

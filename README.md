@@ -106,11 +106,15 @@ lines were per-sender and per-domain enumerations nobody reads on a phone.
 
 What arrives instead — the whole thing, 37 lines:
 
-![A mailcow-sentinel daily digest: a verdict of ATTENTION for credential stuffing
-in the Subject, then mail flow totals, per-mailbox send and receive volumes, an
-authentication attack summary naming the targeted mailboxes and the breach-dump
-usernames used against them, new warning classes, and a closing health
-line.](docs/img/digest.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/digest.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/img/digest-light.svg">
+  <img alt="A mailcow-sentinel daily digest: a verdict of ATTENTION for credential
+stuffing in the Subject, then mail flow totals, per-mailbox send and receive
+volumes, an authentication attack summary naming the targeted mailboxes and the
+breach-dump usernames used against them, new warning classes, and a closing
+health line." src="docs/img/digest.svg">
+</picture>
 
 *(Plain-text version: [`examples/sample-digest.txt`](examples/sample-digest.txt).
 Synthetic data throughout — see [Caveats](#caveats).)*

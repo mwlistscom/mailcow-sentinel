@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="830" height="769"
+     viewBox="0 0 830 769" role="img"
+     aria-label="A mailcow-sentinel daily digest email, 37 lines, showing a
+     verdict of ATTENTION for credential stuffing, mail flow totals, per-mailbox
+     volumes, an authentication attack summary and a health line.">
+  <rect width="830" height="769" rx="10" fill="#fdfdfc"/>
+  <path d="M0 10a10 10 0 0 1 10-10h810a10 10 0 0 1 10 10v24H0z"
+        fill="#f0f2f6"/>
+  <line x1="0" y1="34" x2="830" y2="34" stroke="#e2e6ed"/>
+  <circle cx="22" cy="17" r="5.5" fill="#d3d8e2"/><circle cx="39" cy="17" r="5.5" fill="#d3d8e2"/><circle cx="56" cy="17" r="5.5" fill="#d3d8e2"/>
+  <text x="76" y="22" fill="#67717f" font-size="11.5"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        letter-spacing="0.08em">MAILCOW-SENTINEL &#183; DAILY DIGEST</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+     font-size="13">
+    <text x="22.0" y="61" fill="#67717f" xml:space="preserve">Subject:</text>
+    <text x="84.5" y="61" fill="#0b0e14" font-weight="600" xml:space="preserve"> [mail.example.com] ATTENTION - credential stuffing vs bob@, carol@,</text>
+    <text x="22.0" y="80" fill="#0b0e14" font-weight="600" xml:space="preserve">         alice@ - 168 in / 1 out</text>
+    <text x="22.0" y="118" fill="#1f5fa8" font-weight="600" xml:space="preserve">VERDICT</text>
+    <text x="76.7" y="118" fill="#1f2430" xml:space="preserve">     </text>
+    <text x="115.7" y="118" fill="#b3261e" font-weight="600" xml:space="preserve">ATTENTION</text>
+    <text x="186.0" y="118" fill="#1f2430" xml:space="preserve"> - credential stuffing vs bob@, carol@, alice@;</text>
+    <text x="22.0" y="137" fill="#8a5a00" xml:space="preserve">            breach-dump usernames in use against this server</text>
+    <text x="22.0" y="175" fill="#1f5fa8" font-weight="600" xml:space="preserve">FLOW</text>
+    <text x="53.2" y="175" fill="#1f2430" xml:space="preserve">        168 received - 157 delivered - 1 sent externally</text>
+    <text x="22.0" y="194" fill="#1f2430" xml:space="preserve">            0 deferred - 0 bounced - 48 rejected (28 greylist, 20 hard)</text>
+    <text x="22.0" y="213" fill="#1f2430" xml:space="preserve">            queue 0 - containers 18/18 - cert 57d</text>
+    <text x="22.0" y="251" fill="#1f5fa8" font-weight="600" xml:space="preserve">ACCOUNTS</text>
+    <text x="84.5" y="251" fill="#1f2430" xml:space="preserve">            recv  sent   vs 7-day</text>
+    <text x="22.0" y="270" fill="#1f2430" xml:space="preserve">  alice@example.com   60     0     +12%  </text>
+    <text x="342.2" y="270" fill="#6a93c8" xml:space="preserve">##################</text>
+    <text x="22.0" y="289" fill="#1f2430" xml:space="preserve">  dave@example.com    32     0      -4%  </text>
+    <text x="342.2" y="289" fill="#6a93c8" xml:space="preserve">##########</text>
+    <text x="22.0" y="308" fill="#1f2430" xml:space="preserve">  carol@example.com   25     0      -8%  </text>
+    <text x="342.2" y="308" fill="#6a93c8" xml:space="preserve">########</text>
+    <text x="22.0" y="327" fill="#1f2430" xml:space="preserve">  bob@example.com     16     0      +2%  </text>
+    <text x="342.2" y="327" fill="#6a93c8" xml:space="preserve">#####</text>
+    <text x="22.0" y="346" fill="#1f2430" xml:space="preserve">  erin@example.com    14     0       0%  </text>
+    <text x="342.2" y="346" fill="#6a93c8" xml:space="preserve">####</text>
+    <text x="22.0" y="365" fill="#1f2430" xml:space="preserve">  app@example.com      0     1       --</text>
+    <text x="22.0" y="403" fill="#b3261e" font-weight="600" xml:space="preserve">! AUTH     </text>
+    <text x="107.9" y="403" fill="#1f2430" xml:space="preserve"> 430 failures (313 smtp, 117 imap) - 219 IPs - 5 banned (1%)</text>
+    <text x="22.0" y="422" fill="#1f2430" xml:space="preserve">            targets: bob@example.com 144 - carol@example.com 118 -</text>
+    <text x="22.0" y="441" fill="#1f2430" xml:space="preserve">                     alice@example.com 76</text>
+    <text x="22.0" y="460" fill="#8a5a00" xml:space="preserve">            33 attempts used breach-dump usernames, e.g.</text>
+    <text x="22.0" y="479" fill="#8a5a00" xml:space="preserve">              httpswww.amazon.comalice@example.com</text>
+    <text x="22.0" y="498" fill="#8a5a00" xml:space="preserve">            -&gt; these addresses are in a public combolist;</text>
+    <text x="22.0" y="517" fill="#8a5a00" xml:space="preserve">               check those mailbox passwords are not reused</text>
+    <text x="22.0" y="555" fill="#1f5fa8" font-weight="600" xml:space="preserve">REJECTS</text>
+    <text x="76.7" y="555" fill="#1f2430" xml:space="preserve">     Service unavailable (32); Greylisted, try again later (8)</text>
+    <text x="22.0" y="593" fill="#1f5fa8" font-weight="600" xml:space="preserve">NEW</text>
+    <text x="45.4" y="593" fill="#1f2430" xml:space="preserve">         2 warning class(es) not seen in the previous 7 days:</text>
+    <text x="22.0" y="612" fill="#1f2430" xml:space="preserve">              9x warning: TLS SNI from unknown[203.0.113.9] is invalid</text>
+    <text x="22.0" y="650" fill="#1f5fa8" font-weight="600" xml:space="preserve">TRIAGE</text>
+    <text x="68.9" y="650" fill="#1f2430" xml:space="preserve">      (qwen3.6:27b, advisory - classification only)</text>
+    <text x="22.0" y="669" fill="#1f2430" xml:space="preserve">              ignore Automated scanner probing non-SMTP ports and invalid SNI.</text>
+    <text x="22.0" y="707" fill="#0f7b2f" font-weight="600" xml:space="preserve">OK</text>
+    <text x="37.6" y="707" fill="#1f2430" xml:space="preserve">          no unexplained logins - no delivery failures - 18/18 containers up</text>
+    <text x="22.0" y="745" fill="#67717f" xml:space="preserve">-- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.</text>
+  </g>
+</svg>
