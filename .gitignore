@@ -1,0 +1,15 @@
+# Live configuration and site policy -- never commit these.
+config.ini
+llm_prompt.txt
+
+# State. Holds banned addresses, the identities they attempted, and per-mailbox
+# mail volumes. WAL mode adds the -wal/-shm sidecars, hence the globs: a bare
+# "history.db" line would miss them.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+
+__pycache__/
+*.pyc
+*.log

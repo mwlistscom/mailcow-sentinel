@@ -1,0 +1,10 @@
+# mailcow-sentinel
+#
+# Digest for the PREVIOUS CALENDAR DAY. 00:12 rather than 00:10 deliberately:
+# */5 includes minute 10, and the two tools share one SQLite file, so an
+# on-the-hour digest would collide with an authguard run every single night.
+12 0 * * * /opt/mailcow-sentinel/maildigest.py >> /var/log/mailcow_digest.log 2>&1
+
+# Ban sweep. Cheap in steady state (~1.5 s); the first run is slower because it
+# makes two docker exec calls per newly banned address.
+*/5 * * * * /opt/mailcow-sentinel/authguard.py >> /var/log/mailcow_authguard.log 2>&1
