@@ -144,7 +144,12 @@ def collect(mcw, day_start, day_end):
             else:
                 m["hard_reject"] += 1
             reason = "unknown"
-            rm = re.search(r"\b[45]\.\d\.\d\s+([^;]{0,60})", msg)
+            # Skip a bracketed address between the status code and the text:
+            # `450 4.7.1 <user@host>: Sender address rejected: ...` would
+            # otherwise report the address itself as the reason -- noise, and it
+            # drags a recipient address into the summary.
+            rm = re.search(
+                r"\b[45]\.\d\.\d\s+(?:<[^>]*>:?\s*)?([^;]{0,60})", msg)
             if rm:
                 reason = rm.group(1).strip()
             elif "blocked using" in msg:
@@ -301,6 +306,27 @@ def db_baseline(c, date_s, days=7):
     return out
 
 
+def db_bans(c, day_start, day_end):
+    """What authguard's denylist did on this day, plus what it currently holds.
+
+    Reads the ledger authguard maintains in the same history.db. If authguard is
+    not installed the tables are still created by the shared schema, so this
+    simply reports zeros rather than failing.
+    """
+    q = c.execute
+    live = q("SELECT COUNT(*) FROM authguard_ban").fetchone()[0]
+    added = q("SELECT COUNT(*) FROM authguard_ban WHERE added_ts >= ? AND added_ts < ?",
+              (day_start, day_end)).fetchone()[0]
+    reasons = q("SELECT reason, COUNT(*) FROM authguard_ban "
+                "WHERE added_ts >= ? AND added_ts < ? GROUP BY reason "
+                "ORDER BY 2 DESC", (day_start, day_end)).fetchall()
+    expiring = q("SELECT COUNT(*) FROM authguard_ban WHERE expires_ts < ?",
+                 (day_end + 86400,)).fetchone()[0]
+    oldest = q("SELECT MIN(added_ts) FROM authguard_ban").fetchone()[0]
+    return {"live": live, "added": added, "reasons": reasons,
+            "expiring": expiring, "oldest": oldest}
+
+
 def db_series(c, date_s, days=30):
     """Per-day totals per account, oldest first, for the chart.
 
@@ -403,7 +429,8 @@ def bar(n, scale, width=18):
     return "#" * max(1, int(round(n / scale * width))) if n else ""
 
 
-def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days):
+def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
+                bans=None):
     L = []
     add = L.append
     # Sent is weighted heavily: an account that sent anything is more
@@ -464,6 +491,15 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days):
             add(f"              {u} from {h}[{ip}]")
         add("")
 
+    if bans and (bans["live"] or bans["added"]):
+        why = ", ".join(f"{r} {n}" for r, n in bans["reasons"]) or "none today"
+        add(f"BLOCKED     {bans['added']} added today - {bans['live']} denylisted now"
+            f" - {bans['expiring']} expiring within 24h")
+        add(f"            added by: {why}")
+        if m["bans"]:
+            add(f"            netfilter's own rule banned {m['bans']} separately")
+        add("")
+
     if m["reject_reasons"] and m["hard_reject"]:
         add("REJECTS     " + "; ".join(
             f"{r} ({n})" for r, n in m["reject_reasons"].most_common(3)))
@@ -478,9 +514,9 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days):
 
     if llm:
         add(f"TRIAGE      ({CFG['llm_model']}, advisory - classification only)")
-        for line in llm.splitlines()[:12]:
-            if line.strip():
-                add(f"              {line.strip()[:92]}")
+        seen = Counter(l.strip()[:92] for l in llm.splitlines() if l.strip())
+        for line, n in seen.most_common(12):
+            add(f"              {line}" + (f"   (x{n})" if n > 1 else ""))
         add("")
 
     ok = []
@@ -597,15 +633,253 @@ near zero, so any sustained orange is worth opening immediately.</footer>
 </div></body></html>"""
 
 
+# ------------------------------------------------------- html mail body
+
+# Palette: the light set, contrast-checked against the card background. Mail
+# clients cannot be relied on for prefers-color-scheme, and a half-applied dark
+# theme is worse than a committed light one, so this is light and explicit.
+P = {"plane": "#f4f6f9", "card": "#ffffff", "rule": "#e2e6ed",
+     "ink": "#1f2430", "dim": "#67717f", "bad": "#b3261e", "good": "#0f7b2f",
+     "warn": "#8a5a00", "key": "#1f5fa8", "s1": "#2a78d6", "s2": "#eb6834"}
+MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
+SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+
+def _card(label, colour, body):
+    """One titled card. Tables, not divs: Outlook ignores most box models."""
+    return (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border-collapse:separate;margin:0 0 10px"><tr>'
+        f'<td style="background:{P["card"]};border:1px solid {P["rule"]};'
+        f'border-left:3px solid {colour};border-radius:8px;padding:13px 16px">'
+        f'<div style="font:600 11px/1.4 {SANS};letter-spacing:.09em;'
+        f'text-transform:uppercase;color:{colour};padding-bottom:7px">{label}</div>'
+        f'{body}</td></tr></table>')
+
+
+def _mono(txt, colour=None, size="13px"):
+    return (f'<div style="font:400 {size}/1.65 {MONO};color:{colour or P["ink"]};'
+            f'white-space:normal">{txt}</div>')
+
+
+def render_email_html(date_s, m, st, baseline, new_classes, llm, coverage,
+                      hist_days, bans, level, reasons):
+    e = html.escape
+    accent = P["good"] if level == "OK" else P["bad"]
+    out = []
+
+    # ---- header
+    out.append(
+        f'<div style="font:600 11px/1.4 {SANS};letter-spacing:.1em;'
+        f'text-transform:uppercase;color:{P["dim"]}">'
+        f'{e(CFG["hostname"])} &middot; {e(date_s)}</div>'
+        f'<div style="font:700 26px/1.2 {SANS};color:{accent};padding:4px 0 2px">'
+        f'{e(level)}</div>'
+        f'<div style="font:400 14px/1.55 {SANS};color:{P["ink"]};padding-bottom:18px">'
+        f'{e("; ".join(reasons) if reasons else "nothing unusual")}</div>')
+
+    # ---- flow, as figures rather than a sentence
+    cells = [("received", m["received"], P["ink"]),
+             ("delivered", m["delivered"], P["ink"]),
+             ("sent out", m["external"], P["ink"]),
+             ("deferred", m["deferred"], P["bad"] if m["deferred"] else P["ink"]),
+             ("bounced", m["bounced"], P["bad"] if m["bounced"] else P["ink"]),
+             ("rejected", m["rejected"], P["ink"])]
+    tds = "".join(
+        f'<td style="padding:0 14px 0 0;vertical-align:top">'
+        f'<div style="font:700 20px/1.1 {SANS};color:{c}">{v}</div>'
+        f'<div style="font:400 11px/1.4 {SANS};color:{P["dim"]}">{k}</div></td>'
+        for k, v, c in cells)
+    sub = (f'queue {st["queue"]} &middot; containers {st["containers"]}/'
+           f'{CFG["expected_containers"]}')
+    if st["cert_days"] is not None:
+        sub += f' &middot; cert {st["cert_days"]}d'
+    sub += (f' &middot; {m["greylisted"]} greylisted, {m["hard_reject"]} hard-rejected')
+    out.append(_card("Flow", P["key"],
+                     f'<table role="presentation" cellpadding="0" cellspacing="0">'
+                     f'<tr>{tds}</tr></table>'
+                     f'<div style="font:400 12px/1.6 {SANS};color:{P["dim"]};'
+                     f'padding-top:9px">{sub}</div>'))
+
+    # ---- accounts
+    accts = sorted(set(m["recv_by"]) | set(m["sent_by"]),
+                   key=lambda a: (-(m["recv_by"][a] + m["sent_by"][a] * 5), a))
+    if accts:
+        peak = max([m["recv_by"][a] for a in accts] + [1])
+        rows = []
+        for a in accts[:14]:
+            r, sn = m["recv_by"][a], m["sent_by"][a]
+            b = baseline.get(a)
+            if b and b["n"] >= 3 and b["recv"] >= 1:
+                d = pct(r - b["recv"], b["recv"])
+                delta = f'{d:+.0f}%'
+                dcol = P["bad"] if abs(d) >= 50 else P["dim"]
+            else:
+                delta, dcol = "&ndash;", P["dim"]
+            w = max(2, int(r / peak * 100)) if r else 0
+            bar = (f'<div style="height:8px;width:{w}%;background:{P["s1"]};'
+                   f'border-radius:2px"></div>') if w else ""
+            sent = (f'<span style="color:{P["s2"]};font-weight:700">{sn}</span>'
+                    if sn else f'<span style="color:{P["dim"]}">0</span>')
+            rows.append(
+                f'<tr>'
+                f'<td style="font:400 13px/1.9 {MONO};color:{P["ink"]};'
+                f'padding-right:14px;white-space:nowrap">{e(a)}</td>'
+                f'<td align="right" style="font:400 13px/1.9 {MONO};'
+                f'color:{P["ink"]};padding-right:10px">{r}</td>'
+                f'<td align="right" style="font:400 13px/1.9 {MONO};'
+                f'padding-right:10px">{sent}</td>'
+                f'<td align="right" style="font:400 12px/1.9 {MONO};color:{dcol};'
+                f'padding-right:14px;white-space:nowrap">{delta}</td>'
+                f'<td width="45%" style="padding-right:2px">{bar}</td></tr>')
+        hdr = (f'<tr><td></td>'
+               f'<td align="right" style="font:600 10px/1.6 {SANS};color:{P["dim"]};'
+               f'letter-spacing:.06em;text-transform:uppercase">recv</td>'
+               f'<td align="right" style="font:600 10px/1.6 {SANS};color:{P["dim"]};'
+               f'letter-spacing:.06em;text-transform:uppercase">sent</td>'
+               f'<td align="right" style="font:600 10px/1.6 {SANS};color:{P["dim"]};'
+               f'letter-spacing:.06em;text-transform:uppercase">'
+               f'vs {CFG["baseline_days"]}d</td><td></td></tr>')
+        out.append(_card("Accounts", P["key"],
+                         f'<table role="presentation" width="100%" cellpadding="0" '
+                         f'cellspacing="0">{hdr}{"".join(rows)}</table>'))
+
+    # ---- authentication
+    total_fail = m["auth_fail"] + m["dovecot_fail"]
+    if total_fail:
+        ips = len(m["auth_ips"] | m["dovecot_ips"])
+        col = P["bad"] if total_fail >= CFG["th_auth_fail"] else P["warn"]
+        body = _mono(
+            f'<b style="color:{col}">{total_fail} failures</b> '
+            f'({m["auth_fail"]} smtp, {m["dovecot_fail"]} imap) from '
+            f'<b>{ips}</b> addresses')
+        tg = (m["auth_targets"] + m["dovecot_targets"]).most_common(4)
+        if tg:
+            body += _mono(
+                "targets: " + " &nbsp;".join(f'{e(u)} <b>{n}</b>' for u, n in tg),
+                P["dim"], "12px")
+        if m["combo_users"]:
+            ex = "".join(f'<div>{e(u)}</div>'
+                         for u, _ in m["combo_users"].most_common(3))
+            body += (
+                f'<div style="margin-top:9px;padding:9px 11px;background:#fdf6e7;'
+                f'border-radius:6px;font:400 12px/1.6 {SANS};color:{P["warn"]}">'
+                f'<b>{sum(m["combo_users"].values())} attempts used breach-dump '
+                f'usernames</b> &mdash; these addresses circulate in a public '
+                f'combolist together with passwords used on those sites.'
+                f'<div style="font:400 12px/1.7 {MONO};padding-top:6px">{ex}</div>'
+                f'Check those mailbox passwords are not reused.</div>')
+        out.append(_card("Authentication attack", col, body))
+
+    # ---- blocked
+    if bans and (bans["live"] or bans["added"]):
+        why = ", ".join(f'{e(r)} {n}' for r, n in bans["reasons"]) or "none today"
+        body = _mono(
+            f'<b style="color:{P["good"]}">{bans["added"]} banned today</b> '
+            f'&middot; <b>{bans["live"]}</b> on the denylist now &middot; '
+            f'{bans["expiring"]} expiring within 24h')
+        body += _mono(f'added by: {why}', P["dim"], "12px")
+        if m["bans"]:
+            body += _mono(
+                f'netfilter\'s own threshold rule banned {m["bans"]} separately',
+                P["dim"], "12px")
+        out.append(_card("Blocked", P["good"], body))
+
+    # ---- rejects
+    if m["reject_reasons"] and m["hard_reject"]:
+        body = _mono("; ".join(f'{e(r)} <b>{n}</b>'
+                               for r, n in m["reject_reasons"].most_common(4)))
+        out.append(_card("Rejects", P["key"], body))
+
+    # ---- new warning classes
+    if new_classes:
+        rows = "".join(
+            f'<div><span style="color:{P["dim"]}">{n}&times;</span> '
+            f'{e(m["warn_example"].get(cls, cls)[:110])}</div>'
+            for cls, n in new_classes[:6])
+        out.append(_card(
+            f"New warning classes &mdash; {len(new_classes)} not seen in "
+            f"{CFG['baseline_days']} days", P["warn"], _mono(rows, P["ink"], "12px")))
+
+    # ---- llm triage
+    if llm:
+        seen = Counter(l.strip() for l in llm.splitlines() if l.strip())
+        rows = []
+        for line, n in seen.most_common(12):
+            verd = line.split()[0].lower() if line.split() else ""
+            col = {"act": P["bad"], "note": P["warn"]}.get(verd, P["dim"])
+            rest = line[len(verd):].strip()
+            rows.append(
+                f'<div><b style="color:{col};text-transform:uppercase">{e(verd)}</b> '
+                f'<span style="color:{P["ink"]}">{e(rest[:100])}</span>'
+                + (f' <span style="color:{P["dim"]}">&times;{n}</span>' if n > 1 else "")
+                + '</div>')
+        out.append(_card(
+            f'Triage &mdash; {e(CFG["llm_model"])}, advisory only', P["dim"],
+            _mono("".join(rows), P["ink"], "12px")))
+
+    # ---- all clear
+    ok = []
+    if not m["auth_ok_unexpected"]:
+        ok.append("no unexplained logins")
+    if not m["bounced"] and not m["deferred"]:
+        ok.append("no delivery failures")
+    if not st["unhealthy"] and st["containers"] >= CFG["expected_containers"]:
+        ok.append(f'{st["containers"]}/{CFG["expected_containers"]} containers up')
+    if ok:
+        body = _mono(" &middot; ".join(e(x) for x in ok), P["good"])
+        for u, h, ip in sorted(set(m["auth_ok_external_known"])):
+            body += _mono(f'expected external sender: {e(u)} via {e(h)}[{e(ip)}]',
+                          P["dim"], "12px")
+        out.append(_card("All clear", P["good"], body))
+
+    # ---- caveats last: they qualify everything above
+    notes = []
+    if hist_days < CFG["baseline_days"]:
+        notes.append(
+            f'<b>Baseline building &mdash; {hist_days}/{CFG["baseline_days"]} days.</b> '
+            f'Per-account deltas and new-warning detection start once there is a '
+            f'full week of history.')
+    short = {k: v for k, v in coverage.items() if not v["full"]}
+    for key, v in sorted(short.items()):
+        notes.append(
+            f'<b>Coverage &mdash; {e(key)} did not reach back to the start of the '
+            f'day</b>, missing the first {v["missing_hours"]:.1f}h '
+            f'({v["entries"]} entries held). The counts above are LOW, not '
+            f'reassuring: mailcow\'s log rings are fixed-size, and a chatty '
+            f'service rolls its ring sooner than a quiet one.')
+    if notes:
+        out.append(_card("Read with care", P["warn"],
+                         "".join(f'<div style="font:400 12px/1.65 {SANS};'
+                                 f'color:{P["ink"]};padding-bottom:5px">{x}</div>'
+                                 for x in notes)))
+
+    out.append(
+        f'<div style="font:400 11px/1.6 {SANS};color:{P["dim"]};padding-top:4px">'
+        f'{m["lines"]} log lines from the Redis rings &middot; {e(date_s)} '
+        f'&middot; per-mailbox chart attached</div>')
+
+    return (f'<div style="margin:0;padding:22px 12px;background:{P["plane"]}">'
+            f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+            f'<tr><td align="center"><table role="presentation" width="100%" '
+            f'cellpadding="0" cellspacing="0" style="max-width:640px">'
+            f'<tr><td>{"".join(out)}</td></tr></table></td></tr></table></div>')
+
+
 # ---------------------------------------------------------------- delivery
 
-def send(mcw, subject, body, html_doc, date_s, to_stdout=False):
+def send(mcw, subject, body, html_doc, date_s, to_stdout=False, html_body=None):
     from email.message import EmailMessage
     msg = EmailMessage()
     msg["From"] = CFG["mail_from"]
     msg["To"] = CFG["mail_to"]
     msg["Subject"] = subject
     msg.set_content(body)
+    if html_body:
+        # multipart/alternative: the plain text stays the canonical version and
+        # is what a terminal, a pager or a text-only client shows. The HTML is a
+        # presentation of the same numbers, never a superset of them.
+        msg.add_alternative(html_body, subtype="html")
     if html_doc:
         msg.add_attachment(html_doc.encode(), maintype="text",
                            subtype="html",
@@ -666,6 +940,8 @@ def main():
     ap.add_argument("--stdout", action="store_true", help="print instead of mailing")
     ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--html-out", help="also write the chart page to this path")
+    ap.add_argument("--email-out",
+                    help="also write the HTML mail body to this path")
     ap.add_argument("--check-config", action="store_true",
                     help="validate configuration and connectivity, then exit")
     ap.add_argument("--version", action="version", version=mc.__version__)
@@ -707,6 +983,7 @@ def main():
     st = system_state(mcw)
     coverage = mcw.coverage(start)
 
+    bans = db_bans(c, start, end)
     hist_days = db_history_days(c, date_s)
     baseline = db_baseline(c, date_s, CFG["baseline_days"])
     new_classes = db_new_classes(c, date_s, m, CFG["baseline_days"])
@@ -726,14 +1003,19 @@ def main():
     body = (f"VERDICT     {level} - "
             f"{'; '.join(reasons) if reasons else 'nothing unusual'}\n\n"
             + render_text(date_s, m, st, baseline, new_classes, llm,
-                          coverage, hist_days))
+                          coverage, hist_days, bans))
     html_doc = render_html(date_s, m, db_series(c, date_s, CFG["chart_days"]),
                            level)
+    html_body = render_email_html(date_s, m, st, baseline, new_classes, llm,
+                                  coverage, hist_days, bans, level, reasons)
     c.close()
     if a.html_out:
         with open(a.html_out, "w") as fh:
             fh.write(html_doc)
-    return send(mcw, subject, body, html_doc, date_s, a.stdout)
+    if a.email_out:
+        with open(a.email_out, "w") as fh:
+            fh.write(html_body)
+    return send(mcw, subject, body, html_doc, date_s, a.stdout, html_body)
 
 
 if __name__ == "__main__":

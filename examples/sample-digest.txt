@@ -24,6 +24,10 @@ ACCOUNTS            recv  sent   vs 7-day
             -> these addresses are in a public combolist;
                check those mailbox passwords are not reused
 
+BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h
+            added by: enumerating 22, nonexistent-identity 9
+            netfilter's own rule banned 5 separately
+
 REJECTS     Service unavailable (32); Greylisted, try again later (8)
 
 NEW         2 warning class(es) not seen in the previous 7 days:

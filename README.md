@@ -119,6 +119,11 @@ health line." src="docs/img/digest.svg">
 *(Plain-text version: [`examples/sample-digest.txt`](examples/sample-digest.txt).
 Synthetic data throughout — see [Caveats](#caveats).)*
 
+The mail is `multipart/alternative`: the plain text above is the canonical
+version and is what a pager or a text-only client shows, with an HTML rendering
+of the same figures for clients that want it. **The HTML never carries a number
+the text does not** — it is a presentation of the digest, not a superset of it.
+
 An HTML chart of per-mailbox volume is attached:
 
 <picture>
