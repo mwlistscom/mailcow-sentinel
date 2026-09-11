@@ -24,6 +24,15 @@ ACCOUNTS            recv  sent   vs 7-day
             -> these addresses are in a public combolist;
                check those mailbox passwords are not reused
 
+FRONT DOOR  678 connections from 471 IPs -> 168 messages (25% yielded mail)
+            254 connected and vanished - 247 failed TLS - 212 abandoned mid-auth
+            166 IPs tried to authenticate - 31 of them banned
+            worst: 203.0.113.224 (12) - 203.0.113.185 (7) - 198.51.100.194 (7)
+
+BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,
+            spameatingmonkey 3, spamcop 2, suomispam 1
+            allowlisted: dnswl 20, mailspike 6
+
 BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h
             added by: enumerating 22, nonexistent-identity 9
             netfilter's own rule banned 5 separately

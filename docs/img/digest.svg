@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="830" height="845"
-     viewBox="0 0 830 845" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" width="830" height="1016"
+     viewBox="0 0 830 1016" role="img"
      aria-label="A mailcow-sentinel daily digest email, 37 lines, showing a
      verdict of ATTENTION for credential stuffing, mail flow totals, per-mailbox
      volumes, an authentication attack summary and a health line.">
-  <rect width="830" height="845" rx="10" fill="#0f1319"/>
+  <rect width="830" height="1016" rx="10" fill="#0f1319"/>
   <path d="M0 10a10 10 0 0 1 10-10h810a10 10 0 0 1 10 10v24H0z"
         fill="#171c24"/>
   <line x1="0" y1="34" x2="830" y2="34" stroke="#232a35"/>
@@ -46,19 +46,26 @@
     <text x="22.0" y="479" fill="#ffcc5c" xml:space="preserve">              httpswww.amazon.comalice@example.com</text>
     <text x="22.0" y="498" fill="#ffcc5c" xml:space="preserve">            -&gt; these addresses are in a public combolist;</text>
     <text x="22.0" y="517" fill="#ffcc5c" xml:space="preserve">               check those mailbox passwords are not reused</text>
-    <text x="22.0" y="555" fill="#d6deeb" xml:space="preserve">BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h</text>
-    <text x="22.0" y="574" fill="#d6deeb" xml:space="preserve">            added by: enumerating 22, nonexistent-identity 9</text>
-    <text x="22.0" y="593" fill="#d6deeb" xml:space="preserve">            netfilter&#x27;s own rule banned 5 separately</text>
-    <text x="22.0" y="631" fill="#8fb6e8" font-weight="600" xml:space="preserve">REJECTS</text>
-    <text x="76.7" y="631" fill="#d6deeb" xml:space="preserve">     Service unavailable (32); Greylisted, try again later (8)</text>
-    <text x="22.0" y="669" fill="#8fb6e8" font-weight="600" xml:space="preserve">NEW</text>
-    <text x="45.4" y="669" fill="#d6deeb" xml:space="preserve">         2 warning class(es) not seen in the previous 7 days:</text>
-    <text x="22.0" y="688" fill="#d6deeb" xml:space="preserve">              9x warning: TLS SNI from unknown[203.0.113.9] is invalid</text>
-    <text x="22.0" y="726" fill="#8fb6e8" font-weight="600" xml:space="preserve">TRIAGE</text>
-    <text x="68.9" y="726" fill="#d6deeb" xml:space="preserve">      (qwen3.6:27b, advisory - classification only)</text>
-    <text x="22.0" y="745" fill="#d6deeb" xml:space="preserve">              ignore Automated scanner probing non-SMTP ports and invalid SNI.</text>
-    <text x="22.0" y="783" fill="#6ede8a" font-weight="600" xml:space="preserve">OK</text>
-    <text x="37.6" y="783" fill="#d6deeb" xml:space="preserve">          no unexplained logins - no delivery failures - 18/18 containers up</text>
-    <text x="22.0" y="821" fill="#7a8598" xml:space="preserve">-- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.</text>
+    <text x="22.0" y="555" fill="#d6deeb" xml:space="preserve">FRONT DOOR  678 connections from 471 IPs -&gt; 168 messages (25% yielded mail)</text>
+    <text x="22.0" y="574" fill="#d6deeb" xml:space="preserve">            254 connected and vanished - 247 failed TLS - 212 abandoned mid-auth</text>
+    <text x="22.0" y="593" fill="#d6deeb" xml:space="preserve">            166 IPs tried to authenticate - 31 of them banned</text>
+    <text x="22.0" y="612" fill="#d6deeb" xml:space="preserve">            worst: 203.0.113.224 (12) - 203.0.113.185 (7) - 198.51.100.194 (7)</text>
+    <text x="22.0" y="650" fill="#d6deeb" xml:space="preserve">BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,</text>
+    <text x="22.0" y="669" fill="#d6deeb" xml:space="preserve">            spameatingmonkey 3, spamcop 2, suomispam 1</text>
+    <text x="22.0" y="688" fill="#d6deeb" xml:space="preserve">            allowlisted: dnswl 20, mailspike 6</text>
+    <text x="22.0" y="726" fill="#d6deeb" xml:space="preserve">BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h</text>
+    <text x="22.0" y="745" fill="#d6deeb" xml:space="preserve">            added by: enumerating 22, nonexistent-identity 9</text>
+    <text x="22.0" y="764" fill="#d6deeb" xml:space="preserve">            netfilter&#x27;s own rule banned 5 separately</text>
+    <text x="22.0" y="802" fill="#8fb6e8" font-weight="600" xml:space="preserve">REJECTS</text>
+    <text x="76.7" y="802" fill="#d6deeb" xml:space="preserve">     Service unavailable (32); Greylisted, try again later (8)</text>
+    <text x="22.0" y="840" fill="#8fb6e8" font-weight="600" xml:space="preserve">NEW</text>
+    <text x="45.4" y="840" fill="#d6deeb" xml:space="preserve">         2 warning class(es) not seen in the previous 7 days:</text>
+    <text x="22.0" y="859" fill="#d6deeb" xml:space="preserve">              9x warning: TLS SNI from unknown[203.0.113.9] is invalid</text>
+    <text x="22.0" y="897" fill="#8fb6e8" font-weight="600" xml:space="preserve">TRIAGE</text>
+    <text x="68.9" y="897" fill="#d6deeb" xml:space="preserve">      (qwen3.6:27b, advisory - classification only)</text>
+    <text x="22.0" y="916" fill="#d6deeb" xml:space="preserve">              ignore Automated scanner probing non-SMTP ports and invalid SNI.</text>
+    <text x="22.0" y="954" fill="#6ede8a" font-weight="600" xml:space="preserve">OK</text>
+    <text x="37.6" y="954" fill="#d6deeb" xml:space="preserve">          no unexplained logins - no delivery failures - 18/18 containers up</text>
+    <text x="22.0" y="992" fill="#7a8598" xml:space="preserve">-- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.</text>
   </g>
 </svg>

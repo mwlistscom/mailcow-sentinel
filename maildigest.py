@@ -88,6 +88,24 @@ def normalise(msg):
     return re.sub(r"\s+", " ", s).strip()[:180]
 
 
+# Generic labels that carry no identity: the recognisable part of a DNSBL zone
+# is whatever is left once these are removed. bl.spamcop.net -> spamcop,
+# hostkarma.junkemailfilter.com -> hostkarma, zen.dq.spamhaus.net -> spamhaus zen.
+_ZONE_NOISE = {"bl", "b", "dnsbl", "rbl", "wl", "list", "dq", "net", "com",
+               "org", "sbl", "xbl", "pbl", "dbl", "zrd"}
+
+
+def short_zone(zone):
+    parts = [p for p in zone.lower().split(".") if p]
+    if "spamhaus" in parts:
+        flavour = next((p for p in parts if p in ("zen", "dbl", "zrd")), "")
+        return f"spamhaus {flavour}".strip()
+    for p in parts:
+        if p not in _ZONE_NOISE:
+            return p
+    return zone
+
+
 def pct(n, d):
     return 0.0 if not d else round(100.0 * n / d, 1)
 
@@ -102,12 +120,16 @@ def collect(mcw, day_start, day_end):
         "greylisted": 0, "hard_reject": 0,
         "recv_by": Counter(), "sent_by": Counter(),
         "auth_fail": 0, "auth_ips": set(), "auth_targets": Counter(),
+        "auth_ips_count": Counter(),
         "combo_users": Counter(),
         "auth_ok": [], "auth_ok_unexpected": [], "auth_ok_external_known": [],
         "dovecot_fail": 0, "dovecot_ips": set(), "dovecot_targets": Counter(),
         "warn_classes": Counter(), "warn_example": {},
         "bans": 0, "ban_ips": set(),
         "reject_reasons": Counter(),
+        "connects": 0, "conn_ips": set(), "probes": 0, "tls_fail": 0,
+        "auth_drop": 0, "allowlisted": 0,
+        "dnsbl": Counter(), "dnsbl_ips": set(),
         "lines": 0,
     }
 
@@ -163,6 +185,7 @@ def collect(mcw, day_start, day_end):
             ip = RE_BRACKET_IP.search(msg)
             if ip:
                 m["auth_ips"].add(ip.group(1))
+                m["auth_ips_count"][ip.group(1)] += 1
             u = RE_USERNAME.search(msg)
             if u:
                 user = u.group(1)
@@ -185,6 +208,32 @@ def collect(mcw, day_start, day_end):
                 m["auth_ok_external_known"].append(rec)
             m["sent_by"][user.lower()] += 1
 
+        # ---- what is knocking on the door, vs what becomes mail
+        if msg.startswith("connect from"):
+            m["connects"] += 1
+            g = RE_BRACKET_IP.search(msg)
+            if g:
+                m["conn_ips"].add(g.group(1))
+        elif "lost connection after CONNECT" in msg:
+            m["probes"] += 1
+        elif "lost connection after AUTH" in msg:
+            m["auth_drop"] += 1
+        elif "SSL_accept error" in msg:
+            m["tls_fail"] += 1
+        elif msg.startswith("ALLOWLISTED"):
+            m["allowlisted"] += 1
+        elif "listed by domain" in msg:
+            z = re.search(r"listed by domain (\S+)", msg)
+            ip = RE_IP.search(msg)
+            if z:
+                # Strip a DQS key prefix. Spamhaus DQS zones are
+                # <key>.zen.dq.spamhaus.net -- the key is a credential and must
+                # never reach the digest, which is emailed and may be forwarded.
+                zone = re.sub(r"^[A-Za-z0-9]{16,}\.", "", z.group(1))
+                m["dnsbl"][zone] += 1
+            if ip:
+                m["dnsbl_ips"].add(ip.group(0))
+
         # ---- warnings (SASL noise excluded; it is summarised above)
         if msg.startswith("warning:") and "SASL" not in msg:
             cls = normalise(msg)
@@ -202,6 +251,7 @@ def collect(mcw, day_start, day_end):
             if ctx:
                 m["dovecot_targets"][ctx.group(1)] += 1
                 m["dovecot_ips"].add(ctx.group(2))
+                m["auth_ips_count"][ctx.group(2)] += 1
                 if RE_COMBO.search(ctx.group(1)):
                     m["combo_users"][ctx.group(1)] += 1
 
@@ -500,6 +550,34 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
             add(f"            netfilter's own rule banned {m['bans']} separately")
         add("")
 
+    if m["connects"]:
+        att = len(m["auth_ips"] | m["dovecot_ips"])
+        yielded = pct(m["received"], m["connects"])
+        add(f"FRONT DOOR  {m['connects']} connections from {len(m['conn_ips'])} "
+            f"IPs -> {m['received']} messages ({yielded:.0f}% yielded mail)")
+        add(f"            {m['probes']} connected and vanished - "
+            f"{m['tls_fail']} failed TLS - {m['auth_drop']} abandoned mid-auth")
+        add(f"            {att} IPs tried to authenticate"
+            + (f" - {bans['added']} of them banned" if bans and bans["added"] else ""))
+        worst = (m["auth_ips_count"].most_common(3)
+                 if m.get("auth_ips_count") else [])
+        if worst:
+            add("            worst: " + " - ".join(f"{ip} ({n})" for ip, n in worst))
+        add("")
+
+    if m["dnsbl"]:
+        wl = {z: n for z, n in m["dnsbl"].items() if "dnswl" in z or z.startswith("wl.")}
+        bl = {z: n for z, n in m["dnsbl"].items() if z not in wl}
+        if bl:
+            add(f"BLOCKLISTS  {len(m['dnsbl_ips'])} IPs listed - "
+                + ", ".join(f"{short_zone(z)} {n}"
+                            for z, n in sorted(bl.items(), key=lambda x: -x[1])[:6]))
+        if wl:
+            add("            allowlisted: "
+                + ", ".join(f"{short_zone(z)} {n}"
+                            for z, n in sorted(wl.items(), key=lambda x: -x[1])))
+        add("")
+
     if m["reject_reasons"] and m["hard_reject"]:
         add("REJECTS     " + "; ".join(
             f"{r} ({n})" for r, n in m["reject_reasons"].most_common(3)))
@@ -770,6 +848,58 @@ def render_email_html(date_s, m, st, baseline, new_classes, llm, coverage,
                 f'<div style="font:400 12px/1.7 {MONO};padding-top:6px">{ex}</div>'
                 f'Check those mailbox passwords are not reused.</div>')
         out.append(_card("Authentication attack", col, body))
+
+    # ---- front door: what knocked, versus what became mail
+    if m["connects"]:
+        att = len(m["auth_ips"] | m["dovecot_ips"])
+        yielded = pct(m["received"], m["connects"])
+        cells = [("connections", m["connects"]), ("unique IPs", len(m["conn_ips"])),
+                 ("became mail", f'{yielded:.0f}%'), ("tried to auth", att)]
+        tds = "".join(
+            f'<td style="padding:0 16px 0 0;vertical-align:top">'
+            f'<div style="font:700 18px/1.1 {SANS};color:{P["ink"]}">{v}</div>'
+            f'<div style="font:400 11px/1.4 {SANS};color:{P["dim"]}">{k}</div></td>'
+            for k, v in cells)
+        body = (f'<table role="presentation" cellpadding="0" cellspacing="0">'
+                f'<tr>{tds}</tr></table>')
+        body += _mono(
+            f'{m["probes"]} connected and vanished &middot; {m["tls_fail"]} failed '
+            f'TLS &middot; {m["auth_drop"]} abandoned mid-authentication',
+            P["dim"], "12px")
+        worst = m.get("auth_ips_count", Counter()).most_common(3)
+        if worst:
+            body += _mono("worst offenders: " + " &nbsp;".join(
+                f'{e(ip)} <b>{n}</b>' for ip, n in worst), P["dim"], "12px")
+        out.append(_card("Front door", P["key"], body))
+
+    # ---- which blocklists are earning their keep
+    if m["dnsbl"]:
+        wl = {z: n for z, n in m["dnsbl"].items()
+              if "dnswl" in z or z.startswith("wl.")}
+        bl = {z: n for z, n in m["dnsbl"].items() if z not in wl}
+        body = ""
+        if bl:
+            top = sorted(bl.items(), key=lambda x: -x[1])[:7]
+            mx = max(n for _, n in top)
+            rows = "".join(
+                f'<tr><td style="font:400 12px/1.9 {MONO};color:{P["ink"]};'
+                f'padding-right:12px;white-space:nowrap">{e(short_zone(z))}</td>'
+                f'<td align="right" style="font:400 12px/1.9 {MONO};'
+                f'color:{P["ink"]};padding-right:10px">{n}</td>'
+                f'<td width="60%"><div style="height:7px;width:'
+                f'{max(2, int(n / mx * 100))}%;background:{P["s2"]};'
+                f'border-radius:2px"></div></td></tr>' for z, n in top)
+            body += _mono(
+                f'<b>{len(m["dnsbl_ips"])} IPs</b> listed across '
+                f'{len(bl)} blocklist(s)', P["ink"], "13px")
+            body += (f'<table role="presentation" width="100%" cellpadding="0" '
+                     f'cellspacing="0" style="margin-top:6px">{rows}</table>')
+        if wl:
+            body += _mono("allowlisted: " + ", ".join(
+                f'{e(short_zone(z))} <b>{n}</b>'
+                for z, n in sorted(wl.items(), key=lambda x: -x[1])),
+                P["good"], "12px")
+        out.append(_card("Blocklists", P["s2"], body))
 
     # ---- blocked
     if bans and (bans["live"] or bans["added"]):
