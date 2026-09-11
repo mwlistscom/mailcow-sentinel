@@ -33,7 +33,7 @@ BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,
             spameatingmonkey 3, spamcop 2, suomispam 1
             allowlisted: dnswl 20, mailspike 6
 
-AUTHGUARD   31 banned today - 96 on the denylist now - 4 expiring within 24h
+SENTINEL    31 banned today - 96 on the denylist now - 4 expiring within 24h
             by signal: enumerating 22, nonexistent-identity 9
             mailcow's own threshold rule banned 5 in the same period
 

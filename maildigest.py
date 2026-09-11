@@ -600,7 +600,7 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
 
     if bans and (bans["live"] or bans["added"]):
         why = ", ".join(f"{r} {n}" for r, n in bans["reasons"]) or "none today"
-        add(f"AUTHGUARD   {bans['added']} banned today - {bans['live']} on the "
+        add(f"SENTINEL    {bans['added']} banned today - {bans['live']} on the "
             f"denylist now - {bans['expiring']} expiring within 24h")
         add(f"            by signal: {why}")
         # The comparison is the point of the tool existing, so state it rather
@@ -994,7 +994,7 @@ def render_email_html(date_s, m, st, baseline, new_classes, llm, coverage,
                 f'border-radius:6px;font:400 12px/1.6 {SANS};color:{P["ink"]}">'
                 f"mailcow's own threshold rule banned "
                 f'<b>{m["bans"]}</b> in the same period.</div>')
-        out.append(_card("Blocked by authguard", P["good"], body))
+        out.append(_card("Blocked by Mailcow-Sentinel", P["good"], body))
 
     # ---- repeat offenders
     if repeat and repeat["days_held"] >= 2:

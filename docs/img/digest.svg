@@ -53,7 +53,7 @@
     <text x="22.0" y="650" fill="#d6deeb" xml:space="preserve">BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,</text>
     <text x="22.0" y="669" fill="#d6deeb" xml:space="preserve">            spameatingmonkey 3, spamcop 2, suomispam 1</text>
     <text x="22.0" y="688" fill="#d6deeb" xml:space="preserve">            allowlisted: dnswl 20, mailspike 6</text>
-    <text x="22.0" y="726" fill="#d6deeb" xml:space="preserve">AUTHGUARD   31 banned today - 96 on the denylist now - 4 expiring within 24h</text>
+    <text x="22.0" y="726" fill="#d6deeb" xml:space="preserve">SENTINEL    31 banned today - 96 on the denylist now - 4 expiring within 24h</text>
     <text x="22.0" y="745" fill="#d6deeb" xml:space="preserve">            by signal: enumerating 22, nonexistent-identity 9</text>
     <text x="22.0" y="764" fill="#d6deeb" xml:space="preserve">            mailcow&#x27;s own threshold rule banned 5 in the same period</text>
     <text x="22.0" y="802" fill="#d6deeb" xml:space="preserve">REPEAT      11 addresses seen on 2+ of the last 7 day(s) - 23 of today&#x27;s 166 are returning</text>
