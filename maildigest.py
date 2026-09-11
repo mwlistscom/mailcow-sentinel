@@ -523,15 +523,24 @@ def render_html(date_s, m, series, level):
     S1, S2 = "#2a78d6", "#eb6834"
     days = sorted(series)
     accounts = sorted({a for d in days for a in series[d]})
-    peak = max([series[d][a]["recv"] for d in days for a in series[d]] + [1])
+    # Scale on BOTH series. Peaking on recv alone means a compromised mailbox --
+    # the one case this chart exists to reveal -- renders its sent bar far taller
+    # than the plot, overflowing the card instead of standing out in it.
+    peak = max([max(v["recv"], v["sent"])
+                for d in days for v in series[d].values()] + [1])
 
     rows = []
     for a in accounts:
         cells = []
         for d in days:
             v = series[d].get(a, {"recv": 0, "sent": 0})
-            h = max(1, int(v["recv"] / peak * 46))
-            sh_ = max(1, int(v["sent"] / peak * 46)) if v["sent"] else 0
+            # Floor of 3px, not 1px: a single message scaled against a peak
+            # of hundreds renders as a hairline that reads as zero. Outbound is
+            # the compromise tripwire, and the whole value of a near-zero
+            # baseline is that ANY outbound is visible -- so a nonzero value
+            # must look nonzero. Zero still draws nothing.
+            h = max(3, int(v["recv"] / peak * 46)) if v["recv"] else 0
+            sh_ = max(3, int(v["sent"] / peak * 46)) if v["sent"] else 0
             cells.append(
                 f'<div class="col" title="{html.escape(d)} &middot; '
                 f'{html.escape(a)}&#10;recv {v["recv"]} / sent {v["sent"]}">'
@@ -558,7 +567,8 @@ font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}
 .wrap{{max-width:900px;margin:0 auto}}
 h1{{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.02em}}
 .sub{{color:var(--dim);font-size:.86rem;margin-bottom:22px}}
-.lg{{display:flex;gap:16px;font-size:.8rem;color:var(--dim);margin-bottom:18px}}
+.lg{{display:flex;font-size:.8rem;color:var(--dim);margin-bottom:18px}}
+.lg span{{margin-right:16px}}
 .lg i{{display:inline-block;width:10px;height:10px;border-radius:2px;
 margin-right:5px;vertical-align:-1px}}
 section{{background:var(--card);border:1px solid var(--rule);border-radius:10px;
@@ -566,10 +576,12 @@ padding:14px 16px;margin-bottom:10px}}
 h2{{font-size:.9rem;font-weight:600;margin:0 0 10px;display:flex;
 justify-content:space-between;align-items:baseline}}
 h2 em{{font-style:normal;font-weight:400;color:var(--dim);font-size:.78rem}}
-.plot{{display:flex;align-items:flex-end;gap:2px;height:52px;
+.plot{{display:flex;align-items:flex-end;height:52px;
 border-bottom:1px solid var(--rule);overflow-x:auto}}
 .col{{display:flex;flex-direction:column-reverse;justify-content:flex-start;
-gap:1px;min-width:7px;flex:1}}
+min-width:7px;flex:1;margin-right:2px}}
+.col:last-child{{margin-right:0}}
+.col .s{{margin-bottom:1px}}
 .r{{background:var(--s1);border-radius:2px 2px 0 0;display:block}}
 .s{{background:var(--s2);border-radius:2px 2px 0 0;display:block}}
 footer{{color:var(--dim);font-size:.78rem;margin-top:20px}}

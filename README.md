@@ -119,9 +119,26 @@ health line." src="docs/img/digest.svg">
 *(Plain-text version: [`examples/sample-digest.txt`](examples/sample-digest.txt).
 Synthetic data throughout — see [Caveats](#caveats).)*
 
-An HTML chart of per-mailbox volume is attached. Outbound is the compromise
-tripwire: on most small servers the baseline is *zero*, so any sustained outbound
-from a mailbox is visible immediately with no threshold tuning.
+An HTML chart of per-mailbox volume is attached:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/chart.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/img/chart-light.png">
+  <img alt="The attached HTML chart: one card per mailbox showing 30 days of
+daily mail volume as small bars. Five mailboxes show steady blue received bars
+and no outbound. A sixth, an application account, sends one or two messages every
+day. One mailbox, carol@example.com, shows three orange outbound bars rising
+sharply over the last three days against a previously flat-zero baseline."
+src="docs/img/chart.png">
+</picture>
+
+Outbound is the compromise tripwire, and the chart above shows why that works:
+five mailboxes sit at a flat zero, the application account sends its usual one or
+two a day, and one mailbox suddenly does not. **No threshold had to be tuned to
+make that visible** — against a zero baseline, any sustained orange is the signal.
+
+*(Synthetic data. Regenerate with `docs/img/render-chart.py`, which drives the
+real `render_html()` so the image is genuine output rather than a mock-up.)*
 
 ### Four things it does that a log summariser does not
 
