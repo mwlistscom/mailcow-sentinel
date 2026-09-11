@@ -536,6 +536,12 @@ def bar(n, scale, width=18):
     return "#" * max(1, int(round(n / scale * width))) if n else ""
 
 
+# Width of the left-hand label gutter. Every section label is padded to it and
+# every continuation line indented by it, so the body forms one column. Set by
+# the longest label ("MAILCOW-SENTINEL", 16) plus two spaces of separation.
+LBL = 18
+
+
 def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
                 bans=None, repeat=None):
     L = []
@@ -547,18 +553,19 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
         set(m["recv_by"]) | set(m["sent_by"]),
         key=lambda a: (-(m["recv_by"][a] + m["sent_by"][a] * 5), a))
 
-    add(f"FLOW        {m['received']} received - {m['delivered']} delivered "
+    add(f"FLOW              {m['received']} received - {m['delivered']} delivered "
         f"- {m['external']} sent externally")
-    add(f"            {m['deferred']} deferred - {m['bounced']} bounced "
+    add(f"                  {m['deferred']} deferred - {m['bounced']} bounced "
         f"- {m['rejected']} rejected "
         f"({m['greylisted']} greylist, {m['hard_reject']} hard)")
-    add(f"            queue {st['queue']} - containers "
+    add(f"                  queue {st['queue']} - containers "
         f"{st['containers']}/{CFG['expected_containers']}"
         + (f" - cert {st['cert_days']}d" if st["cert_days"] is not None else ""))
     add("")
 
     if mail_accounts:
-        add(f"ACCOUNTS            recv  sent   vs {CFG['baseline_days']}-day")
+        hdr = f"vs {CFG['baseline_days']}d"
+        add(f"{'ACCOUNTS':<{LBL}}{'':<20}{'recv':>4} {'sent':>5}   {hdr:>6}")
         peak = max([m["recv_by"][a] for a in mail_accounts] + [1])
         for a in mail_accounts[:12]:
             r, s = m["recv_by"][a], m["sent_by"][a]
@@ -568,112 +575,113 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
                 delta = f"{d:+.0f}%"
             else:
                 delta = "  --"
-            name = a if len(a) <= 18 else a[:17] + "~"
-            add(f"  {name:<18}{r:>4} {s:>5}   {delta:>6}  {bar(r, peak)}")
+            name = a if len(a) <= 20 else a[:19] + "~"
+            add(f"{'':<{LBL}}{name:<20}{r:>4} {s:>5}   {delta:>6}  "
+                f"{bar(r, peak)}")
         add("")
 
     total_fail = m["auth_fail"] + m["dovecot_fail"]
     if total_fail:
         ips = len(m["auth_ips"] | m["dovecot_ips"])
         tag = "! AUTH" if total_fail >= CFG["th_auth_fail"] else "  auth"
-        add(f"{tag}      {total_fail} failures ({m['auth_fail']} smtp, "
+        add(f"{tag:<{LBL}}{total_fail} failures ({m['auth_fail']} smtp, "
             f"{m['dovecot_fail']} imap) - {ips} IPs - {m['bans']} banned "
             f"({pct(m['bans'], total_fail):.0f}%)")
         tgts = (m["auth_targets"] + m["dovecot_targets"]).most_common(4)
         if tgts:
-            add("            targets: " +
+            add("                  targets: " +
                 " - ".join(f"{u} {n}" for u, n in tgts))
         if m["combo_users"]:
-            add(f"            {sum(m['combo_users'].values())} attempts used "
+            add(f"                  {sum(m['combo_users'].values())} attempts used "
                 f"breach-dump usernames, e.g.")
             for u, _ in m["combo_users"].most_common(3):
-                add(f"              {u}")
-            add("            -> these addresses are in a public combolist;")
-            add("               check those mailbox passwords are not reused")
+                add(f"                    {u}")
+            add("                  -> these addresses are in a public combolist;")
+            add("                     check those mailbox passwords are not reused")
         add("")
 
     if m["auth_ok_unexpected"]:
-        add("! LOGIN     authenticated send from an unrecognised source:")
+        add("! LOGIN           authenticated send from an unrecognised source:")
         for u, h, ip in m["auth_ok_unexpected"][:5]:
-            add(f"              {u} from {h}[{ip}]")
+            add(f"                    {u} from {h}[{ip}]")
         add("")
 
     if bans and (bans["live"] or bans["added"]):
         why = ", ".join(f"{r} {n}" for r, n in bans["reasons"]) or "none today"
-        add(f"SENTINEL    {bans['added']} banned today - {bans['live']} on the "
+        add(f"MAILCOW-SENTINEL  {bans['added']} banned today - {bans['live']} on the "
             f"denylist now - {bans['expiring']} expiring within 24h")
-        add(f"            by signal: {why}")
+        add(f"                  by signal: {why}")
         # The comparison is the point of the tool existing, so state it rather
         # than leaving the reader to infer it from two numbers in one line.
         if m["bans"]:
-            add(f"            mailcow's own threshold rule banned {m['bans']} "
+            add(f"                  mailcow's own threshold rule banned {m['bans']} "
                 f"in the same period")
         add("")
 
     if repeat and repeat["days_held"] >= 2:
         r = repeat
-        add(f"REPEAT      {r['total']} addresses seen on {r['min_days']}+ of the "
+        add(f"REPEAT            {r['total']} addresses seen on {r['min_days']}+ of the "
             f"last {r['days_held']} day(s) - {r['returning']} of today's "
             f"{r['today']} are returning")
         for ip, d, a, first, banned in r["rows"]:
             flag = "" if banned else "  <- never banned"
-            add(f"              {ip:<16} {d} days, {a} attempts, "
+            add(f"                    {ip:<16} {d} days, {a} attempts, "
                 f"since {first}{flag}")
         if r["never_banned"]:
-            add(f"            {r['never_banned']} of them were never banned - "
+            add(f"                  {r['never_banned']} of them were never banned - "
                 f"these are the single-mailbox")
-            add(f"            attempts authguard deliberately leaves alone")
+            add(f"                  attempts authguard deliberately leaves alone")
         add("")
     elif repeat:
-        add(f"REPEAT      building - {repeat['days_held']}/{repeat['window']} "
+        add(f"REPEAT            building - {repeat['days_held']}/{repeat['window']} "
             f"days of attacker history recorded")
         add("")
 
     if m["connects"]:
         att = len(m["auth_ips"] | m["dovecot_ips"])
         yielded = pct(m["received"], m["connects"])
-        add(f"FRONT DOOR  {m['connects']} connections from {len(m['conn_ips'])} "
+        add(f"FRONT DOOR        {m['connects']} connections from {len(m['conn_ips'])} "
             f"IPs -> {m['received']} messages ({yielded:.0f}% yielded mail)")
-        add(f"            {m['probes']} connected and vanished - "
+        add(f"                  {m['probes']} connected and vanished - "
             f"{m['tls_fail']} failed TLS - {m['auth_drop']} abandoned mid-auth")
-        add(f"            {att} IPs tried to authenticate"
+        add(f"                  {att} IPs tried to authenticate"
             + (f" - {bans['added']} of them banned" if bans and bans["added"] else ""))
         worst = (m["auth_ips_count"].most_common(3)
                  if m.get("auth_ips_count") else [])
         if worst:
-            add("            worst: " + " - ".join(f"{ip} ({n})" for ip, n in worst))
+            add("                  worst: " + " - ".join(f"{ip} ({n})" for ip, n in worst))
         add("")
 
     if m["dnsbl"]:
         wl = {z: n for z, n in m["dnsbl"].items() if "dnswl" in z or z.startswith("wl.")}
         bl = {z: n for z, n in m["dnsbl"].items() if z not in wl}
         if bl:
-            add(f"BLOCKLISTS  {len(m['dnsbl_ips'])} IPs listed - "
+            add(f"BLOCKLISTS        {len(m['dnsbl_ips'])} IPs listed - "
                 + ", ".join(f"{short_zone(z)} {n}"
                             for z, n in sorted(bl.items(), key=lambda x: -x[1])[:6]))
         if wl:
-            add("            allowlisted: "
+            add("                  allowlisted: "
                 + ", ".join(f"{short_zone(z)} {n}"
                             for z, n in sorted(wl.items(), key=lambda x: -x[1])))
         add("")
 
     if m["reject_reasons"] and m["hard_reject"]:
-        add("REJECTS     " + "; ".join(
+        add("REJECTS           " + "; ".join(
             f"{r} ({n})" for r, n in m["reject_reasons"].most_common(3)))
         add("")
 
     if new_classes:
-        add(f"NEW         {len(new_classes)} warning class(es) not seen in the "
+        add(f"NEW               {len(new_classes)} warning class(es) not seen in the "
             f"previous 7 days:")
         for cls, n in new_classes[:6]:
-            add(f"              {n}x {m['warn_example'].get(cls, cls)[:88]}")
+            add(f"                    {n}x {m['warn_example'].get(cls, cls)[:88]}")
         add("")
 
     if llm:
-        add(f"TRIAGE      ({CFG['llm_model']}, advisory - classification only)")
+        add(f"TRIAGE            ({CFG['llm_model']}, advisory - classification only)")
         seen = Counter(l.strip()[:92] for l in llm.splitlines() if l.strip())
         for line, n in seen.most_common(12):
-            add(f"              {line}" + (f"   (x{n})" if n > 1 else ""))
+            add(f"                    {line}" + (f"   (x{n})" if n > 1 else ""))
         add("")
 
     ok = []
@@ -684,26 +692,26 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
     if not st["unhealthy"] and st["containers"] >= CFG["expected_containers"]:
         ok.append(f"{st['containers']}/{CFG['expected_containers']} containers up")
     if ok:
-        add("OK          " + " - ".join(ok))
+        add("OK                " + " - ".join(ok))
         for u, h, ip in sorted(set(m["auth_ok_external_known"])):
-            add(f"            expected external sender: {u} via {h}[{ip}]")
+            add(f"                  expected external sender: {u} via {h}[{ip}]")
         add("")
 
     if hist_days < 7:
-        add(f"BASELINE    building - {hist_days}/7 days recorded. "
+        add(f"BASELINE          building - {hist_days}/7 days recorded. "
             f"Per-account deltas and new-warning detection")
-        add("            start once there is a week of history.")
+        add("                  start once there is a week of history.")
         add("")
 
     short = {k: v for k, v in coverage.items() if not v["full"]}
     if short:
-        add("! COVERAGE  a log ring did not reach back to the start of the day;")
-        add("            the counts above are LOW, not reassuring:")
+        add("! COVERAGE        a log ring did not reach back to the start of the day;")
+        add("                  the counts above are LOW, not reassuring:")
         for key, v in sorted(short.items()):
-            add(f"              {key:<18} missing the first "
+            add(f"                    {key:<18} missing the first "
                 f"{v['missing_hours']:.1f}h  ({v['entries']} entries held)")
-        add("            mailcow's rings are fixed-size, and a chatty service")
-        add("            rolls its ring sooner than a quiet one.")
+        add("                  mailcow's rings are fixed-size, and a chatty service")
+        add("                  rolls its ring sooner than a quiet one.")
         add("")
 
     add(f"-- {m['lines']} log lines from the Redis rings, "
@@ -1249,7 +1257,7 @@ def main():
         head = head[:55].rstrip(" ,;(") + "..."
     subject = (f"[{CFG['hostname']}] {level} - {head} - "
                f"{m['received']} in / {m['external']} out")
-    body = (f"VERDICT     {level} - "
+    body = (f"VERDICT           {level} - "
             f"{'; '.join(reasons) if reasons else 'nothing unusual'}\n\n"
             + render_text(date_s, m, st, baseline, new_classes, llm,
                           coverage, hist_days, bans, repeat))

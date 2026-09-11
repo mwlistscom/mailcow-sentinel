@@ -1,57 +1,59 @@
-Subject: [mail.example.com] ATTENTION - credential stuffing vs bob@, carol@,
-         alice@ - 168 in / 1 out
+VERDICT           ATTENTION - credential stuffing vs bob@, carol@, alice@;
+                  breach-dump usernames in use against this server
 
-VERDICT     ATTENTION - credential stuffing vs bob@, carol@, alice@;
-            breach-dump usernames in use against this server
+FLOW              168 received - 157 delivered - 1 sent externally
+                  0 deferred - 0 bounced - 24 rejected (14 greylist, 10 hard)
+                  queue 0 - containers 18/18 - cert 57d
 
-FLOW        168 received - 157 delivered - 1 sent externally
-            0 deferred - 0 bounced - 48 rejected (28 greylist, 20 hard)
-            queue 0 - containers 18/18 - cert 57d
+ACCOUNTS                              recv  sent    vs 7d
+                  alice@example.com     58     0       --  ##################
+                  dave@example.com      35     0       --  ###########
+                  carol@example.com     28     0       --  #########
+                  erin@example.com      27     0       --  ########
+                  bob@example.com       14     0       --  ####
+                  app@example.com        0     1       --  
+                  postmaster@example.~   2     0       --  #
+                  help@example.net       1     0       --  #
 
-ACCOUNTS            recv  sent   vs 7-day
-  alice@example.com   60     0     +12%  ##################
-  dave@example.com    32     0      -4%  ##########
-  carol@example.com   25     0      -8%  ########
-  bob@example.com     16     0      +2%  #####
-  erin@example.com    14     0       0%  ####
-  app@example.com      0     1       --
+! AUTH            325 failures (223 smtp, 102 imap) - 166 IPs - 5 banned (2%)
+                  targets: bob@example.com 131 - carol@example.com 74 - alice@example.com 68 - bob 13
+                  8 attempts used breach-dump usernames, e.g.
+                    httpswww.amazon.comalice@example.com
+                    httpspa.fadv.combob@example.com
+                    www.att.commyalice@example.com
+                  -> these addresses are in a public combolist;
+                     check those mailbox passwords are not reused
 
-! AUTH      430 failures (313 smtp, 117 imap) - 219 IPs - 5 banned (1%)
-            targets: bob@example.com 144 - carol@example.com 118 -
-                     alice@example.com 76
-            33 attempts used breach-dump usernames, e.g.
-              httpswww.amazon.comalice@example.com
-            -> these addresses are in a public combolist;
-               check those mailbox passwords are not reused
+MAILCOW-SENTINEL  31 banned today - 96 on the denylist now - 4 expiring within 24h
+                  by signal: enumerating 22, nonexistent-identity 9
+                  mailcow's own threshold rule banned 5 in the same period
 
-FRONT DOOR  678 connections from 471 IPs -> 168 messages (25% yielded mail)
-            254 connected and vanished - 247 failed TLS - 212 abandoned mid-auth
-            166 IPs tried to authenticate - 31 of them banned
-            worst: 203.0.113.224 (12) - 203.0.113.185 (7) - 198.51.100.194 (7)
+REPEAT            11 addresses seen on 2+ of the last 7 day(s) - 23 of today's 166 are returning
+                    203.0.113.24     6 days, 41 attempts, since 2026-09-04  <- never banned
+                    203.0.113.85     4 days, 12 attempts, since 2026-09-06  <- never banned
+                    198.51.100.14    3 days, 9 attempts, since 2026-09-07
+                  8 of them were never banned - these are the single-mailbox
+                  attempts authguard deliberately leaves alone
 
-BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,
-            spameatingmonkey 3, spamcop 2, suomispam 1
-            allowlisted: dnswl 20, mailspike 6
+FRONT DOOR        678 connections from 471 IPs -> 168 messages (25% yielded mail)
+                  254 connected and vanished - 247 failed TLS - 212 abandoned mid-auth
+                  166 IPs tried to authenticate - 31 of them banned
+                  worst: 203.0.113.24 (12) - 203.0.113.85 (7) - 198.51.100.14 (7)
 
-SENTINEL    31 banned today - 96 on the denylist now - 4 expiring within 24h
-            by signal: enumerating 22, nonexistent-identity 9
-            mailcow's own threshold rule banned 5 in the same period
+BLOCKLISTS        69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3, spameatingmonkey 3, spamcop 2, suomispam 1
+                  allowlisted: dnswl 20, mailspike 6
 
-REPEAT      11 addresses seen on 2+ of the last 7 day(s) - 23 of today's 166 are returning
-              203.0.113.224    6 days, 41 attempts, since 2026-09-04  <- never banned
-              203.0.113.185    4 days, 12 attempts, since 2026-09-06  <- never banned
-              198.51.100.194   3 days, 9 attempts, since 2026-09-07
-            8 of them were never banned - these are the single-mailbox
-            attempts authguard deliberately leaves alone
+REJECTS           Greylisted, please try again later (11); Service unavailable (8); Protocol error (2)
 
-REJECTS     Service unavailable (32); Greylisted, try again later (8)
+NEW               2 warning class(es) not seen in the previous 7 days:
+                    9x warning: TLS SNI from unknown[203.0.113.9] is invalid: 198.51.100.1
+                    2x warning: hostname scanner.example.net does not resolve to address 203.0.113.44
 
-NEW         2 warning class(es) not seen in the previous 7 days:
-              9x warning: TLS SNI from unknown[203.0.113.9] is invalid
+TRIAGE            (qwen3.6:27b, advisory - classification only)
+                    note Transient DNS failure for an external sender hostname.   (x2)
+                    ignore Automated scanner probing non-SMTP ports and invalid SNI.
 
-TRIAGE      (qwen3.6:27b, advisory - classification only)
-              ignore Automated scanner probing non-SMTP ports and invalid SNI.
-
-OK          no unexplained logins - no delivery failures - 18/18 containers up
+OK                no unexplained logins - no delivery failures - 18/18 containers up
+                  expected external sender: app@example.com via webhost.example.net[203.0.113.7]
 
 -- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.
