@@ -33,9 +33,16 @@ BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,
             spameatingmonkey 3, spamcop 2, suomispam 1
             allowlisted: dnswl 20, mailspike 6
 
-BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h
-            added by: enumerating 22, nonexistent-identity 9
-            netfilter's own rule banned 5 separately
+AUTHGUARD   31 banned today - 96 on the denylist now - 4 expiring within 24h
+            by signal: enumerating 22, nonexistent-identity 9
+            mailcow's own threshold rule banned 5 in the same period
+
+REPEAT      11 addresses seen on 2+ of the last 7 day(s) - 23 of today's 166 are returning
+              203.0.113.224    6 days, 41 attempts, since 2026-09-04  <- never banned
+              203.0.113.185    4 days, 12 attempts, since 2026-09-06  <- never banned
+              198.51.100.194   3 days, 9 attempts, since 2026-09-07
+            8 of them were never banned - these are the single-mailbox
+            attempts authguard deliberately leaves alone
 
 REJECTS     Service unavailable (32); Greylisted, try again later (8)
 

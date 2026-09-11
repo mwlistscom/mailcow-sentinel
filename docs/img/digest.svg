@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="830" height="1016"
-     viewBox="0 0 830 1016" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" width="830" height="1149"
+     viewBox="0 0 830 1149" role="img"
      aria-label="A mailcow-sentinel daily digest email, 37 lines, showing a
      verdict of ATTENTION for credential stuffing, mail flow totals, per-mailbox
      volumes, an authentication attack summary and a health line.">
-  <rect width="830" height="1016" rx="10" fill="#0f1319"/>
+  <rect width="830" height="1149" rx="10" fill="#0f1319"/>
   <path d="M0 10a10 10 0 0 1 10-10h810a10 10 0 0 1 10 10v24H0z"
         fill="#171c24"/>
   <line x1="0" y1="34" x2="830" y2="34" stroke="#232a35"/>
@@ -53,19 +53,25 @@
     <text x="22.0" y="650" fill="#d6deeb" xml:space="preserve">BLOCKLISTS  69 IPs listed - hostkarma 112, spamhaus zen 74, mailspike 3,</text>
     <text x="22.0" y="669" fill="#d6deeb" xml:space="preserve">            spameatingmonkey 3, spamcop 2, suomispam 1</text>
     <text x="22.0" y="688" fill="#d6deeb" xml:space="preserve">            allowlisted: dnswl 20, mailspike 6</text>
-    <text x="22.0" y="726" fill="#d6deeb" xml:space="preserve">BLOCKED     31 added today - 96 on the denylist now - 4 expiring within 24h</text>
-    <text x="22.0" y="745" fill="#d6deeb" xml:space="preserve">            added by: enumerating 22, nonexistent-identity 9</text>
-    <text x="22.0" y="764" fill="#d6deeb" xml:space="preserve">            netfilter&#x27;s own rule banned 5 separately</text>
-    <text x="22.0" y="802" fill="#8fb6e8" font-weight="600" xml:space="preserve">REJECTS</text>
-    <text x="76.7" y="802" fill="#d6deeb" xml:space="preserve">     Service unavailable (32); Greylisted, try again later (8)</text>
-    <text x="22.0" y="840" fill="#8fb6e8" font-weight="600" xml:space="preserve">NEW</text>
-    <text x="45.4" y="840" fill="#d6deeb" xml:space="preserve">         2 warning class(es) not seen in the previous 7 days:</text>
-    <text x="22.0" y="859" fill="#d6deeb" xml:space="preserve">              9x warning: TLS SNI from unknown[203.0.113.9] is invalid</text>
-    <text x="22.0" y="897" fill="#8fb6e8" font-weight="600" xml:space="preserve">TRIAGE</text>
-    <text x="68.9" y="897" fill="#d6deeb" xml:space="preserve">      (qwen3.6:27b, advisory - classification only)</text>
-    <text x="22.0" y="916" fill="#d6deeb" xml:space="preserve">              ignore Automated scanner probing non-SMTP ports and invalid SNI.</text>
-    <text x="22.0" y="954" fill="#6ede8a" font-weight="600" xml:space="preserve">OK</text>
-    <text x="37.6" y="954" fill="#d6deeb" xml:space="preserve">          no unexplained logins - no delivery failures - 18/18 containers up</text>
-    <text x="22.0" y="992" fill="#7a8598" xml:space="preserve">-- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.</text>
+    <text x="22.0" y="726" fill="#d6deeb" xml:space="preserve">AUTHGUARD   31 banned today - 96 on the denylist now - 4 expiring within 24h</text>
+    <text x="22.0" y="745" fill="#d6deeb" xml:space="preserve">            by signal: enumerating 22, nonexistent-identity 9</text>
+    <text x="22.0" y="764" fill="#d6deeb" xml:space="preserve">            mailcow&#x27;s own threshold rule banned 5 in the same period</text>
+    <text x="22.0" y="802" fill="#d6deeb" xml:space="preserve">REPEAT      11 addresses seen on 2+ of the last 7 day(s) - 23 of today&#x27;s 166 are returning</text>
+    <text x="22.0" y="821" fill="#d6deeb" xml:space="preserve">              203.0.113.224    6 days, 41 attempts, since 2026-09-04  &lt;- never banned</text>
+    <text x="22.0" y="840" fill="#d6deeb" xml:space="preserve">              203.0.113.185    4 days, 12 attempts, since 2026-09-06  &lt;- never banned</text>
+    <text x="22.0" y="859" fill="#d6deeb" xml:space="preserve">              198.51.100.194   3 days, 9 attempts, since 2026-09-07</text>
+    <text x="22.0" y="878" fill="#d6deeb" xml:space="preserve">            8 of them were never banned - these are the single-mailbox</text>
+    <text x="22.0" y="897" fill="#d6deeb" xml:space="preserve">            attempts authguard deliberately leaves alone</text>
+    <text x="22.0" y="935" fill="#8fb6e8" font-weight="600" xml:space="preserve">REJECTS</text>
+    <text x="76.7" y="935" fill="#d6deeb" xml:space="preserve">     Service unavailable (32); Greylisted, try again later (8)</text>
+    <text x="22.0" y="973" fill="#8fb6e8" font-weight="600" xml:space="preserve">NEW</text>
+    <text x="45.4" y="973" fill="#d6deeb" xml:space="preserve">         2 warning class(es) not seen in the previous 7 days:</text>
+    <text x="22.0" y="992" fill="#d6deeb" xml:space="preserve">              9x warning: TLS SNI from unknown[203.0.113.9] is invalid</text>
+    <text x="22.0" y="1030" fill="#8fb6e8" font-weight="600" xml:space="preserve">TRIAGE</text>
+    <text x="68.9" y="1030" fill="#d6deeb" xml:space="preserve">      (qwen3.6:27b, advisory - classification only)</text>
+    <text x="22.0" y="1049" fill="#d6deeb" xml:space="preserve">              ignore Automated scanner probing non-SMTP ports and invalid SNI.</text>
+    <text x="22.0" y="1087" fill="#6ede8a" font-weight="600" xml:space="preserve">OK</text>
+    <text x="37.6" y="1087" fill="#d6deeb" xml:space="preserve">          no unexplained logins - no delivery failures - 18/18 containers up</text>
+    <text x="22.0" y="1125" fill="#7a8598" xml:space="preserve">-- 6058 log lines from the Redis rings, 2026-09-09. Chart attached.</text>
   </g>
 </svg>

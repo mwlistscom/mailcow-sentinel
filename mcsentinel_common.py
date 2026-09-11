@@ -42,7 +42,7 @@ REQUIRED = (
     ("digest", "hostname"),
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class ConfigError(Exception):
@@ -403,6 +403,14 @@ def _ensure_schema(c):
         " ON authguard_seen_ok(last_ts)",
         "CREATE INDEX IF NOT EXISTS ix_ban_expires"
         " ON authguard_ban(expires_ts)",
+        # One row per (day, source address) that attempted authentication.
+        # ~500 rows/day on a small server; pruned to a retention window by the
+        # digest, so it stays a few tens of thousands at most.
+        "CREATE TABLE IF NOT EXISTS attacker_day ("
+        " date TEXT, ip TEXT, attempts INT, banned INT DEFAULT 0,"
+        " PRIMARY KEY (date, ip))",
+        "CREATE INDEX IF NOT EXISTS ix_attacker_ip ON attacker_day(ip)",
+        "CREATE INDEX IF NOT EXISTS ix_attacker_date ON attacker_day(date)",
     )
     c.execute("BEGIN IMMEDIATE")
     try:
@@ -420,6 +428,13 @@ def _ensure_schema(c):
                 "SELECT 'identity_count', CAST(last_ts AS TEXT) "
                 "FROM authguard_seen_ok WHERE ip='#idcount'")
             c.execute("DELETE FROM authguard_seen_ok WHERE ip='#idcount'")
+        if ver < 2:
+            # v1 -> v2 adds attacker_day, created by the DDL above. Nothing to
+            # migrate: repeat-offender history simply starts accumulating from
+            # the next run, which the digest states rather than implying it has
+            # data it does not.
+            pass
+        if ver < SCHEMA_VERSION:
             c.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         c.execute("COMMIT")
     except Exception:

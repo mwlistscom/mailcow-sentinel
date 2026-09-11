@@ -356,6 +356,63 @@ def db_baseline(c, date_s, days=7):
     return out
 
 
+def db_save_attackers(c, date_s, m, banned_ips, keep_days=90):
+    """Record which addresses attempted authentication on this day.
+
+    Stored per day rather than as a running tally so "seen on N of the last M
+    days" is answerable -- an address that tries once a day for a week is a
+    different problem from one that tried 50 times in an hour, and only the
+    former survives a per-IP threshold.
+    """
+    c.execute("BEGIN IMMEDIATE")
+    for ip, n in m.get("auth_ips_count", {}).items():
+        c.execute("INSERT OR REPLACE INTO attacker_day VALUES (?,?,?,?)",
+                  (date_s, ip, n, 1 if ip in banned_ips else 0))
+    cutoff = (dt.date.fromisoformat(date_s)
+              - dt.timedelta(days=keep_days)).isoformat()
+    c.execute("DELETE FROM attacker_day WHERE date < ?", (cutoff,))
+    c.execute("COMMIT")
+
+
+def db_repeat_offenders(c, date_s, window=7, min_days=2, limit=6):
+    """Addresses seen on several days inside the window.
+
+    Also reports how many of today's attackers are returning rather than new,
+    and how many repeat offenders were never banned -- which is the measurable
+    size of authguard's documented blind spot, since anything it banned should
+    not be coming back until the ban expires.
+    """
+    end = dt.date.fromisoformat(date_s)
+    start = (end - dt.timedelta(days=window - 1)).isoformat()
+    days_held = c.execute(
+        "SELECT COUNT(DISTINCT date) FROM attacker_day WHERE date >= ? AND date <= ?",
+        (start, date_s)).fetchone()[0]
+    rows = c.execute(
+        "SELECT ip, COUNT(*) d, SUM(attempts) a, MIN(date) f, MAX(banned) b "
+        "FROM attacker_day WHERE date >= ? AND date <= ? "
+        "GROUP BY ip HAVING d >= ? ORDER BY d DESC, a DESC LIMIT ?",
+        (start, date_s, min_days, limit)).fetchall()
+    total = c.execute(
+        "SELECT COUNT(*) FROM (SELECT ip FROM attacker_day "
+        "WHERE date >= ? AND date <= ? GROUP BY ip HAVING COUNT(*) >= ?)",
+        (start, date_s, min_days)).fetchone()[0]
+    never_banned = c.execute(
+        "SELECT COUNT(*) FROM (SELECT ip FROM attacker_day "
+        "WHERE date >= ? AND date <= ? GROUP BY ip "
+        "HAVING COUNT(*) >= ? AND MAX(banned) = 0)",
+        (start, date_s, min_days)).fetchone()[0]
+    returning = c.execute(
+        "SELECT COUNT(*) FROM (SELECT ip FROM attacker_day "
+        "WHERE date >= ? AND date < ? GROUP BY ip) WHERE ip IN "
+        "(SELECT ip FROM attacker_day WHERE date = ?)",
+        (start, date_s, date_s)).fetchone()[0]
+    today = c.execute("SELECT COUNT(*) FROM attacker_day WHERE date = ?",
+                      (date_s,)).fetchone()[0]
+    return {"rows": rows, "total": total, "never_banned": never_banned,
+            "returning": returning, "today": today, "window": window,
+            "days_held": days_held, "min_days": min_days}
+
+
 def db_bans(c, day_start, day_end):
     """What authguard's denylist did on this day, plus what it currently holds.
 
@@ -480,7 +537,7 @@ def bar(n, scale, width=18):
 
 
 def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
-                bans=None):
+                bans=None, repeat=None):
     L = []
     add = L.append
     # Sent is weighted heavily: an account that sent anything is more
@@ -543,11 +600,33 @@ def render_text(date_s, m, st, baseline, new_classes, llm, coverage, hist_days,
 
     if bans and (bans["live"] or bans["added"]):
         why = ", ".join(f"{r} {n}" for r, n in bans["reasons"]) or "none today"
-        add(f"BLOCKED     {bans['added']} added today - {bans['live']} denylisted now"
-            f" - {bans['expiring']} expiring within 24h")
-        add(f"            added by: {why}")
+        add(f"AUTHGUARD   {bans['added']} banned today - {bans['live']} on the "
+            f"denylist now - {bans['expiring']} expiring within 24h")
+        add(f"            by signal: {why}")
+        # The comparison is the point of the tool existing, so state it rather
+        # than leaving the reader to infer it from two numbers in one line.
         if m["bans"]:
-            add(f"            netfilter's own rule banned {m['bans']} separately")
+            add(f"            mailcow's own threshold rule banned {m['bans']} "
+                f"in the same period")
+        add("")
+
+    if repeat and repeat["days_held"] >= 2:
+        r = repeat
+        add(f"REPEAT      {r['total']} addresses seen on {r['min_days']}+ of the "
+            f"last {r['days_held']} day(s) - {r['returning']} of today's "
+            f"{r['today']} are returning")
+        for ip, d, a, first, banned in r["rows"]:
+            flag = "" if banned else "  <- never banned"
+            add(f"              {ip:<16} {d} days, {a} attempts, "
+                f"since {first}{flag}")
+        if r["never_banned"]:
+            add(f"            {r['never_banned']} of them were never banned - "
+                f"these are the single-mailbox")
+            add(f"            attempts authguard deliberately leaves alone")
+        add("")
+    elif repeat:
+        add(f"REPEAT      building - {repeat['days_held']}/{repeat['window']} "
+            f"days of attacker history recorded")
         add("")
 
     if m["connects"]:
@@ -741,7 +820,7 @@ def _mono(txt, colour=None, size="13px"):
 
 
 def render_email_html(date_s, m, st, baseline, new_classes, llm, coverage,
-                      hist_days, bans, level, reasons):
+                      hist_days, bans, level, reasons, repeat=None):
     e = html.escape
     accent = P["good"] if level == "OK" else P["bad"]
     out = []
@@ -901,19 +980,54 @@ def render_email_html(date_s, m, st, baseline, new_classes, llm, coverage,
                 P["good"], "12px")
         out.append(_card("Blocklists", P["s2"], body))
 
-    # ---- blocked
+    # ---- what authguard did, named, and measured against mailcow's own rule
     if bans and (bans["live"] or bans["added"]):
         why = ", ".join(f'{e(r)} {n}' for r, n in bans["reasons"]) or "none today"
         body = _mono(
             f'<b style="color:{P["good"]}">{bans["added"]} banned today</b> '
             f'&middot; <b>{bans["live"]}</b> on the denylist now &middot; '
             f'{bans["expiring"]} expiring within 24h')
-        body += _mono(f'added by: {why}', P["dim"], "12px")
+        body += _mono(f'by signal: {why}', P["dim"], "12px")
         if m["bans"]:
-            body += _mono(
-                f'netfilter\'s own threshold rule banned {m["bans"]} separately',
-                P["dim"], "12px")
-        out.append(_card("Blocked", P["good"], body))
+            body += (
+                f'<div style="margin-top:8px;padding:8px 11px;background:#eef4fb;'
+                f'border-radius:6px;font:400 12px/1.6 {SANS};color:{P["ink"]}">'
+                f"mailcow's own threshold rule banned "
+                f'<b>{m["bans"]}</b> in the same period.</div>')
+        out.append(_card("Blocked by authguard", P["good"], body))
+
+    # ---- repeat offenders
+    if repeat and repeat["days_held"] >= 2:
+        r = repeat
+        body = _mono(
+            f'<b>{r["total"]}</b> addresses seen on {r["min_days"]}+ of the last '
+            f'{r["days_held"]} day(s) &middot; <b>{r["returning"]}</b> of today\'s '
+            f'{r["today"]} are returning')
+        rows = "".join(
+            f'<tr><td style="font:400 12px/1.9 {MONO};color:{P["ink"]};'
+            f'padding-right:12px">{e(ip)}</td>'
+            f'<td style="font:400 12px/1.9 {MONO};color:{P["dim"]};'
+            f'padding-right:12px;white-space:nowrap">{d} days &middot; {a} attempts'
+            f' &middot; since {e(f)}</td>'
+            f'<td style="font:600 11px/1.9 {SANS};color:'
+            f'{P["good"] if b else P["warn"]}">'
+            f'{"banned" if b else "never banned"}</td></tr>'
+            for ip, d, a, f, b in r["rows"])
+        body += (f'<table role="presentation" cellpadding="0" cellspacing="0" '
+                 f'style="margin-top:6px">{rows}</table>')
+        if r["never_banned"]:
+            body += (
+                f'<div style="margin-top:8px;padding:8px 11px;background:#fdf6e7;'
+                f'border-radius:6px;font:400 12px/1.6 {SANS};color:{P["warn"]}">'
+                f'<b>{r["never_banned"]}</b> of these were never banned. These are '
+                f'the single-mailbox attempts authguard deliberately leaves alone, '
+                f'because they are indistinguishable from a client with a stale '
+                f'password &mdash; this is the measured size of that blind spot.</div>')
+        out.append(_card("Repeat offenders", P["warn"], body))
+    elif repeat:
+        out.append(_card("Repeat offenders", P["dim"], _mono(
+            f'Building &mdash; {repeat["days_held"]}/{repeat["window"]} days of '
+            f'attacker history recorded so far.', P["dim"], "12px")))
 
     # ---- rejects
     if m["reject_reasons"] and m["hard_reject"]:
@@ -1114,6 +1228,11 @@ def main():
     coverage = mcw.coverage(start)
 
     bans = db_bans(c, start, end)
+    banned_today = {r[0] for r in c.execute(
+        "SELECT ip FROM authguard_ban WHERE added_ts >= ? AND added_ts < ?",
+        (start, end))}
+    db_save_attackers(c, date_s, m, banned_today)
+    repeat = db_repeat_offenders(c, date_s)
     hist_days = db_history_days(c, date_s)
     baseline = db_baseline(c, date_s, CFG["baseline_days"])
     new_classes = db_new_classes(c, date_s, m, CFG["baseline_days"])
@@ -1133,11 +1252,12 @@ def main():
     body = (f"VERDICT     {level} - "
             f"{'; '.join(reasons) if reasons else 'nothing unusual'}\n\n"
             + render_text(date_s, m, st, baseline, new_classes, llm,
-                          coverage, hist_days, bans))
+                          coverage, hist_days, bans, repeat))
     html_doc = render_html(date_s, m, db_series(c, date_s, CFG["chart_days"]),
                            level)
     html_body = render_email_html(date_s, m, st, baseline, new_classes, llm,
-                                  coverage, hist_days, bans, level, reasons)
+                                  coverage, hist_days, bans, level, reasons,
+                                  repeat)
     c.close()
     if a.html_out:
         with open(a.html_out, "w") as fh:
